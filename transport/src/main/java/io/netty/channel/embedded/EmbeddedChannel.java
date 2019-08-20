@@ -34,12 +34,16 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelProgressivePromise;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelConfig;
 import io.netty.channel.DefaultChannelPipeline;
+import io.netty.channel.DefaultChannelProgressivePromise;
+import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.channel.RecvByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.RecyclableArrayList;
 import io.netty.util.internal.logging.InternalLogger;
@@ -763,6 +767,30 @@ public class EmbeddedChannel extends AbstractChannel {
         inboundMessages().add(msg);
     }
 
+    @Override
+    public ChannelPromise newPromise() {
+        return new EmbeddedChannelPromise(this, eventLoop());
+    }
+
+    @Override
+    public ChannelProgressivePromise newProgressivePromise() {
+        return new EmbeddedChannelProgressivePromise(this, eventLoop());
+    }
+
+    @Override
+    public ChannelFuture newSucceededFuture() {
+        ChannelPromise promise = newPromise();
+        promise.setSuccess();
+        return promise;
+    }
+
+    @Override
+    public ChannelFuture newFailedFuture(Throwable cause) {
+        ChannelPromise promise = newPromise();
+        promise.setFailure(cause);
+        return promise;
+    }
+
     private final class EmbeddedUnsafe extends AbstractUnsafe {
 
         // Delegates to the EmbeddedUnsafe instance but ensures runPendingTasks() is called after each operation
@@ -866,6 +894,26 @@ public class EmbeddedChannel extends AbstractChannel {
         }
 
         @Override
+        public ChannelPromise newPromise() {
+            return new EmbeddedChannelPromise(channel(), eventLoop());
+        }
+
+        @Override
+        public ChannelProgressivePromise newProgressivePromise() {
+            return new EmbeddedChannelProgressivePromise(channel(), eventLoop());
+        }
+
+        @Override
+        public ChannelFuture newSucceededFuture() {
+            return newPromise().setSuccess();
+        }
+
+        @Override
+        public ChannelFuture newFailedFuture(Throwable cause) {
+            return newPromise().setFailure(cause);
+        }
+
+        @Override
         protected void onUnhandledInboundException(Throwable cause) {
             recordException(cause);
         }
@@ -873,6 +921,32 @@ public class EmbeddedChannel extends AbstractChannel {
         @Override
         protected void onUnhandledInboundMessage(ChannelHandlerContext ctx, Object msg) {
             handleInboundMessage(msg);
+        }
+    }
+
+    private static final class EmbeddedChannelPromise extends DefaultChannelPromise {
+        EmbeddedChannelPromise(Channel channel) {
+            super(channel);
+        }
+
+        EmbeddedChannelPromise(Channel channel, EventExecutor executor) {
+            super(channel, executor);
+        }
+
+        @Override
+        protected boolean notifyWithExecutor() {
+            return false;
+        }
+    }
+
+    private static final class EmbeddedChannelProgressivePromise extends DefaultChannelProgressivePromise {
+        EmbeddedChannelProgressivePromise(Channel channel, EventExecutor executor) {
+            super(channel, executor);
+        }
+
+        @Override
+        protected boolean notifyWithExecutor() {
+            return false;
         }
     }
 }

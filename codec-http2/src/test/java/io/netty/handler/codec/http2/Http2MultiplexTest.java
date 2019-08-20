@@ -31,6 +31,7 @@ import io.netty.handler.codec.http2.Http2Exception.StreamException;
 import io.netty.handler.codec.http2.LastInboundHandler.Consumer;
 import io.netty.util.AsciiString;
 import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.Future;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -384,8 +385,10 @@ public abstract class Http2MultiplexTest<C extends Http2FrameCodec> {
     }
 
     private Http2StreamChannel newOutboundStream(ChannelHandler handler) {
-        return new Http2StreamChannelBootstrap(parentChannel).handler(handler)
-                .open().syncUninterruptibly().getNow();
+        Future<Http2StreamChannel> future = new Http2StreamChannelBootstrap(parentChannel).handler(handler)
+                .open();
+        parentChannel.runPendingTasks();
+        return future.syncUninterruptibly().getNow();
     }
 
     /**
@@ -602,6 +605,7 @@ public abstract class Http2MultiplexTest<C extends Http2FrameCodec> {
         });
         childChannel.close(p).syncUninterruptibly();
 
+        parentChannel.runPendingTasks();
         assertFalse(channelOpen.get());
         assertFalse(channelActive.get());
         assertFalse(childChannel.isActive());
@@ -623,6 +627,7 @@ public abstract class Http2MultiplexTest<C extends Http2FrameCodec> {
              channelActive.set(future.channel().isActive());
          });
          childChannel.close().syncUninterruptibly();
+        parentChannel.runPendingTasks();
 
          assertFalse(channelOpen.get());
          assertFalse(channelActive.get());
@@ -661,6 +666,7 @@ public abstract class Http2MultiplexTest<C extends Http2FrameCodec> {
         ChannelPromise first = writePromises.poll();
         first.setFailure(new ClosedChannelException());
         f.awaitUninterruptibly();
+        parentChannel.runPendingTasks();
 
         assertFalse(channelOpen.get());
         assertFalse(channelActive.get());

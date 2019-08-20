@@ -20,7 +20,12 @@ import static java.util.Objects.requireNonNull;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.util.concurrent.AbstractScheduledEventExecutor;
+import io.netty.util.concurrent.DefaultProgressivePromise;
+import io.netty.util.concurrent.DefaultPromise;
+import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.ProgressivePromise;
+import io.netty.util.concurrent.Promise;
 import io.netty.util.internal.StringUtil;
 
 import java.util.ArrayDeque;
@@ -137,5 +142,49 @@ final class EmbeddedEventLoop extends AbstractScheduledEventExecutor implements 
     @Override
     public boolean inEventLoop(Thread thread) {
         return true;
+    }
+
+    @Override
+    public <V> Promise<V> newPromise() {
+        return new EmbeddedPromise<>(this);
+    }
+
+    @Override
+    public <V> ProgressivePromise<V> newProgressivePromise() {
+        return new EmbeddedProgressivePromise<>(this);
+    }
+
+    @Override
+    public <V> Future<V> newSucceededFuture(V result) {
+        return this.<V>newPromise().setSuccess(result);
+    }
+
+    @Override
+    public <V> Future<V> newFailedFuture(Throwable cause) {
+        return this.<V>newPromise().setFailure(cause);
+    }
+
+    private static final class EmbeddedPromise<V> extends DefaultPromise<V> {
+
+        EmbeddedPromise(EventExecutor executor) {
+            super(executor);
+        }
+
+        @Override
+        protected boolean notifyWithExecutor() {
+            return false;
+        }
+    }
+
+    private static final class EmbeddedProgressivePromise<V> extends DefaultProgressivePromise<V> {
+
+        EmbeddedProgressivePromise(EventExecutor executor) {
+            super(executor);
+        }
+
+        @Override
+        protected boolean notifyWithExecutor() {
+            return false;
+        }
     }
 }
