@@ -73,10 +73,6 @@ public class DefaultPromise<V> implements Promise<V> {
         stage = new DefaultFutureCompletionStage<>(this);
     }
 
-    protected boolean notifyWithExecutor() {
-        return true;
-    }
-
     @Override
     public Promise<V> setSuccess(V result) {
         if (setSuccess0(result)) {
@@ -382,11 +378,7 @@ public class DefaultPromise<V> implements Promise<V> {
     }
 
     private void notifyListeners() {
-        if (notifyWithExecutor()) {
-            safeExecute(executor(), this::notifyListenersNow);
-        } else {
-            notifyListenersNow();
-        }
+        safeExecute(executor(), this::notifyListenersNow);
     }
 
     private void notifyListenersNow() {
@@ -576,24 +568,14 @@ public class DefaultPromise<V> implements Promise<V> {
 
         final ProgressiveFuture<V> self = (ProgressiveFuture<V>) this;
 
-        if (!notifyWithExecutor()) {
-            if (listeners instanceof GenericProgressiveFutureListener[]) {
-                notifyProgressiveListeners0(
-                        self, (GenericProgressiveFutureListener<?>[]) listeners, progress, total);
-            } else {
-                notifyProgressiveListener0(
-                        self, (GenericProgressiveFutureListener<ProgressiveFuture<V>>) listeners, progress, total);
-            }
+        if (listeners instanceof GenericProgressiveFutureListener[]) {
+            final GenericProgressiveFutureListener<?>[] array =
+                    (GenericProgressiveFutureListener<?>[]) listeners;
+            safeExecute(executor(), () -> notifyProgressiveListeners0(self, array, progress, total));
         } else {
-            if (listeners instanceof GenericProgressiveFutureListener[]) {
-                final GenericProgressiveFutureListener<?>[] array =
-                        (GenericProgressiveFutureListener<?>[]) listeners;
-                safeExecute(executor(), () -> notifyProgressiveListeners0(self, array, progress, total));
-            } else {
-                final GenericProgressiveFutureListener<ProgressiveFuture<V>> l =
-                        (GenericProgressiveFutureListener<ProgressiveFuture<V>>) listeners;
-                safeExecute(executor(), () -> notifyProgressiveListener0(self, l, progress, total));
-            }
+            final GenericProgressiveFutureListener<ProgressiveFuture<V>> l =
+                    (GenericProgressiveFutureListener<ProgressiveFuture<V>>) listeners;
+            safeExecute(executor(), () -> notifyProgressiveListener0(self, l, progress, total));
         }
     }
 
