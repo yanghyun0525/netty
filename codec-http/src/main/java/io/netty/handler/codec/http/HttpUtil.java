@@ -27,6 +27,7 @@ import java.util.List;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 import io.netty.util.NetUtil;
+import io.netty.util.internal.ObjectUtil;
 
 /**
  * Utility methods useful in the HTTP context.
@@ -299,7 +300,7 @@ public final class HttpUtil {
      * @return True if transfer encoding is chunked, otherwise false
      */
     public static boolean isTransferEncodingChunked(HttpMessage message) {
-        return message.headers().contains(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED, true);
+        return message.headers().containsValue(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED, true);
     }
 
     /**
@@ -448,9 +449,7 @@ public final class HttpUtil {
      * @throws NullPointerException in case if {@code contentTypeValue == null}
      */
     public static CharSequence getCharsetAsSequence(CharSequence contentTypeValue) {
-        if (contentTypeValue == null) {
-            throw new NullPointerException("contentTypeValue");
-        }
+        ObjectUtil.checkNotNull(contentTypeValue, "contentTypeValue");
 
         int indexOfCharset = AsciiString.indexOfIgnoreCaseAscii(contentTypeValue, CHARSET_EQUALS, 0);
         if (indexOfCharset == AsciiString.INDEX_NOT_FOUND) {
@@ -504,9 +503,7 @@ public final class HttpUtil {
      * @throws NullPointerException in case if {@code contentTypeValue == null}
      */
     public static CharSequence getMimeType(CharSequence contentTypeValue) {
-        if (contentTypeValue == null) {
-            throw new NullPointerException("contentTypeValue");
-        }
+        ObjectUtil.checkNotNull(contentTypeValue, "contentTypeValue");
 
         int indexOfSemicolon = AsciiString.indexOfIgnoreCaseAscii(contentTypeValue, SEMICOLON, 0);
         if (indexOfSemicolon != AsciiString.INDEX_NOT_FOUND) {
@@ -518,7 +515,7 @@ public final class HttpUtil {
 
     /**
      * Formats the host string of an address so it can be used for computing an HTTP component
-     * such as an URL or a Host header
+     * such as a URL or a Host header
      *
      * @param addr the address
      * @return the formatted String
